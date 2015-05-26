@@ -1,0 +1,7 @@
+# Directorio de salida de Maven.
+target/
+bin/
+# Configuración del Eclipse.
+.metadata/
+.project
+.settings/
