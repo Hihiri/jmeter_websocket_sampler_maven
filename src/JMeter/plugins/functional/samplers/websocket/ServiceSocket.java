@@ -77,12 +77,38 @@ public class ServiceSocket {
     public void onMessageBinary(byte buf[],int offset,int len)
     {
         synchronized (parent) {
-        	String msg =new String(buf,offset,len);
+            String msg = new String();
+            byte[] data = new byte[len - 1];
+            System.arraycopy(buf, offset + 1, data, 0, len - 1);
+            if (buf[offset] == 0x01) {
+                Inflater ifl = new Inflater();
+                ifl.setInput(data);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream(data.length);
+                byte[] buff = new byte[1024];
+                try {
+                    while (!ifl.finished()) {
+                        int count = ifl.inflate(buff);
+                        baos.write(buff, 0, count);
+                    }
+                } catch (DataFormatException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (baos != null)
+                            baos.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                msg = new String(baos.toByteArray(), "UTF-8");
+            } else {
+                msg = new String(data, "UTF-8");
+            }
             log.debug("Received message: " + msg);
             String length = " (" + msg.length() + " bytes)";
             logMessage.append(" - Received message #").append(messageCounter).append(length);
             addResponseMessage("[Message " + (messageCounter++) + "]\n" + msg + "\n\n");
-            
+
             if (responseExpression == null || responseExpression.matcher(msg).find()) {
                 logMessage.append("; matched response pattern").append("\n");
                 closeLatch.countDown();
@@ -94,7 +120,7 @@ public class ServiceSocket {
                 logMessage.append("; didn't match any pattern").append("\n");
             }
         }
-    }    
+    }
     
     @OnWebSocketConnect
     public void onOpen(Session session) {
